@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUET PG Score Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .gradient-bg { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans">
+    <div class="gradient-bg py-16 px-4 shadow-lg text-white text-center">
+        <h1 class="text-4xl font-black mb-2">CUET PG Result Calculator</h1>
+        <p class="opacity-90">Bypass CORS using Vercel Proxy and calculate your marks.</p>
+    </div>
+
+    <div class="max-w-4xl mx-auto -mt-10 px-4 pb-12">
+        <div class="glass p-8 rounded-3xl shadow-2xl border border-white">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Paste NTA Response Link</label>
+                    <input type="text" id="urlInput" placeholder="https://exams.nta.ac.in/..." 
+                        class="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-indigo-500 outline-none transition-all">
+                </div>
+                <button onclick="fetchAndCalculate()" id="calcBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
+                    Calculate Score
+                </button>
+            </div>
+
+            <div id="loader" class="hidden mt-8 text-center py-10">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+                <p class="mt-4 text-slate-600 font-medium">Fetching response sheet through proxy...</p>
+            </div>
+
+            <div id="results" class="hidden mt-8">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-indigo-50 p-5 rounded-2xl text-center border border-indigo-100">
+                        <span class="block text-xs font-bold text-indigo-400 uppercase">Attempted</span>
+                        <span id="attempted" class="text-3xl font-black text-indigo-700">0</span>
+                    </div>
+                    <!-- Score calculation requires answer key comparison logic -->
+                </div>
+
+                <div class="overflow-hidden rounded-2xl border border-slate-200">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="p-4 text-xs font-bold text-slate-500 uppercase">Question ID</th>
+                                <th class="p-4 text-xs font-bold text-slate-500 uppercase">Chosen Option</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTable" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchAndCalculate() {
+            const url = document.getElementById('urlInput').value.trim();
+            if(!url) return;
+
+            const btn = document.getElementById('calcBtn');
+            const loader = document.getElementById('loader');
+            const resultsDiv = document.getElementById('results');
+
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+            resultsDiv.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.html, 'text/html');
+                const questionPanels = doc.querySelectorAll('.question-pnl');
+                
+                let count = 0;
+                const tableBody = document.getElementById('dataTable');
+                tableBody.innerHTML = '';
+
+                questionPanels.forEach(panel => {
+                    const qId = Array.from(panel.querySelectorAll('td')).find(td => td.innerText.includes('Question ID'))?.nextElementSibling?.innerText || "N/A";
+                    const chosen = Array.from(panel.querySelectorAll('td')).find(td => td.innerText.includes('Chosen Option'))?.nextElementSibling?.innerText || "--";
+                    
+                    if(chosen !== "--" && chosen !== "None") count++;
+
+                    tableBody.insertAdjacentHTML('beforeend', `
+                        <tr>
+                            <td class="p-4 font-mono text-sm">${qId}</td>
+                            <td class="p-4 font-bold text-indigo-600">${chosen}</td>
+                        </tr>
+                    `);
+                });
+
+                document.getElementById('attempted').innerText = count;
+                resultsDiv.classList.remove('hidden');
+            } catch (err) {
+                alert("Error: " + err.message);
+            } finally {
+                btn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
