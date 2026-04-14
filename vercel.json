@@ -7,12 +7,8 @@
 "destination": "/api/index.py"
 },
 {
-"source": "/",
-"destination": "/public/index.html"
-},
-{
-"source": "/index.html",
-"destination": "/public/index.html"
+"source": "/(.*)",
+"destination": "/public/$1"
 }
 ]
 }
